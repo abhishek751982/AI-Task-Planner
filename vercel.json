@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "package.json", "use": "@vercel/next" },
+    { "src": "api/index.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/api/cron/(.*)", "dest": "/api/index.py" },
+    { "src": "/webhooks/(.*)", "dest": "/api/index.py" },
+    { "src": "/onboard/status", "dest": "/api/index.py" },
+    { "src": "/onboard", "dest": "/api/index.py" },
+    {
+      "src": "/(health|profile|ingest|jira|sync|plan|tasks|review|reminders|auth|stats|leetcode|calendar|brief|bridge|docs|openapi.json)(/.*)?",
+      "dest": "/api/index.py"
+    },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/" }
+  ],
+  "crons": [
+    { "path": "/api/cron/sync-todoist", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/morning", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/eod", "schedule": "0 14 * * *" },
+    { "path": "/api/cron/weekly", "schedule": "0 15 * * 0" },
+    { "path": "/api/cron/monthly", "schedule": "0 15 28 * *" }
+  ]
+}

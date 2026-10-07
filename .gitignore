@@ -1,0 +1,8 @@
+data/
+.env
+*.db
+node_modules/
+.next/
+.venv/
+__pycache__/
+*.pyc
