@@ -30,7 +30,7 @@ export function AuthForm({ mode, notice }: { mode: "login" | "register"; notice?
     try {
       if (mode === "register") {
         await api.register({ email, password, name });
-        router.replace("/login?created=1");
+        router.replace("/signin?created=1");
         return;
       }
       await api.login({ email, password });
@@ -82,7 +82,7 @@ export function AuthForm({ mode, notice }: { mode: "login" | "register"; notice?
               <Link href="/signup" aria-current={creating ? "page" : undefined}>
                 Create account
               </Link>
-              <Link href="/login" aria-current={creating ? undefined : "page"}>
+              <Link href="/signin" aria-current={creating ? undefined : "page"}>
                 Sign in
               </Link>
             </div>

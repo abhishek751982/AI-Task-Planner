@@ -1,6 +1,6 @@
 import { AuthForm } from "@/components/auth-form";
 
-export default async function LoginPage({
+export default async function SignInPage({
   searchParams,
 }: {
   searchParams: Promise<{ created?: string }>;

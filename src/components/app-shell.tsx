@@ -199,7 +199,7 @@ function ShellInner({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<Account | null | undefined>(undefined);
   const page = routes.find((r) => r.href === pathname) ?? routes[0]!;
-  const onAuth = pathname === "/login" || pathname === "/signup";
+  const onAuth = pathname === "/signin" || pathname === "/signup";
 
   useEffect(() => {
     let cancelled = false;
@@ -218,14 +218,14 @@ function ShellInner({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user === undefined) return;
-    if (!user && !onAuth) router.replace("/login");
+    if (!user && !onAuth) router.replace("/signin");
     if (user && onAuth) router.replace("/");
   }, [user, onAuth, router]);
 
   async function logout() {
     await api.logout();
     setUser(null);
-    router.replace("/login");
+    router.replace("/signin");
   }
 
   if (onAuth) {

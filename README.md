@@ -24,7 +24,7 @@ flowchart TD
   api --> gcal
 ```
 
-1. **Account.** Sign up at `/signup`, then sign in at `/login`. The API stores the user in Postgres and sets an `httponly` session cookie. Creating an account does not sign you in.
+1. **Account.** Sign up at `/signup`, then sign in at `/signin`. The API stores the user in Postgres and sets an `httponly` session cookie. Creating an account does not sign you in.
 2. **Onboarding.** Role, work hours, deep-work window, side goals, notification style, and a main goal are saved on the profile. That profile becomes the first memories the planner uses.
 3. **Ingest.** A PDF, a chat message, or a Jira sync is read together with the profile and saved memories. The model breaks the work into small tasks that fit free time, and it respects the daily task cap.
 4. **Schedule.** Hard work is placed in the deep-work window. Job hours stay blocked. Only a few tasks are due each day.
@@ -52,7 +52,7 @@ On a laptop, Next.js rewrites API paths to `http://127.0.0.1:8787`. On Vercel, t
 | Path | What it is |
 | --- | --- |
 | `/signup` | Create an account |
-| `/login` | Sign in |
+| `/signin` | Sign in |
 | `/` | Today’s plan and tasks |
 | `/onboarding` | Profile and schedule preferences |
 | `/progress` | Scores, streaks, LeetCode log |
