@@ -1,169 +1,169 @@
 # Guide Todoo
 
-AI task assistant for macOS: send PDFs or chat messages, break work into small tasks, sync to **Apple Reminders** (Mac + iPhone via iCloud), pull **Jira**, auto-plan your day, and get daily scores + monthly analysis.
+Personal AI task planner. You sign in, tell it how your day actually works, and it turns PDFs, chat, and optional Jira issues into a short daily plan. Tasks sync to Todoist (or Apple Reminders). Morning, evening, weekly, and monthly jobs score what you finished and roll the rest forward.
 
-## Features
+Each account is isolated. Tasks, profile, memories, and reports belong to the signed-in user.
 
-| Phase | What it does |
-|-------|----------------|
-| **A** | PDF upload → LLM breaks into sub-tasks → Apple Reminders |
-| **B** | Chat input + Jira sync → prioritized daily plan → Reminders |
-| **C** | Scheduled morning plan, EOD summary + score, month-end report |
+## System flow
 
-## Free LLM (no paid OpenAI needed)
+```mermaid
+flowchart TD
+  browser["Browser — Next.js"]
+  api["FastAPI"]
+  db["Neon Postgres"]
+  llm["LLM — Groq, Gemini, or OpenRouter"]
+  todoist["Todoist or Apple Reminders"]
+  jira["Jira"]
+  gcal["Google Calendar"]
 
-Set in `.env`:
-
-```bash
-LLM_PROVIDER=groq          # or gemini | openrouter
-LLM_API_KEY=your-key-here
+  browser -->|"cookie session"| api
+  api --> db
+  api --> llm
+  api --> todoist
+  api --> jira
+  api --> gcal
 ```
 
-| Provider | Free tier | Get key |
-|----------|-----------|---------|
-| **Groq** (recommended) | ~30 req/min | [console.groq.com](https://console.groq.com) |
-| **Gemini** | ~1500 req/day | [aistudio.google.com](https://aistudio.google.com/apikey) |
-| **OpenRouter** | 20 req/min, 28+ free models | [openrouter.ai](https://openrouter.ai) |
+1. **Account.** Sign up at `/signup`, then sign in at `/login`. The API stores the user in Postgres and sets an `httponly` session cookie. Creating an account does not sign you in.
+2. **Onboarding.** Role, work hours, deep-work window, side goals, notification style, and a main goal are saved on the profile. That profile becomes the first memories the planner uses.
+3. **Ingest.** A PDF, a chat message, or a Jira sync is read together with the profile and saved memories. The model breaks the work into small tasks that fit free time, and it respects the daily task cap.
+4. **Schedule.** Hard work is placed in the deep-work window. Job hours stay blocked. Only a few tasks are due each day.
+5. **Notify.** New tasks are pushed to Todoist (recommended) or Apple Reminders. Completing a task in Todoist can call back through a webhook and mark it done here.
+6. **Review.** Morning brief, end-of-day score, weekly report, and monthly report run per user. Incomplete work moves to the next free slot, and the model stores one or two new memories from the day.
 
-## Vercel + Mac + iPhone
+On a laptop, Next.js rewrites API paths to `http://127.0.0.1:8787`. On Vercel, the same FastAPI app is served from `api/index.py`, and Vercel Cron calls the scheduled jobs.
 
-**Vercel cannot access Apple Reminders directly.** Use the hybrid setup:
+## Tech stack
 
-1. Deploy API to **Vercel** (`REMINDERS_MODE=bridge`)
-2. Run **Mac bridge** on your MacBook: `guide-todoo bridge`
-3. **iPhone** gets todos via iCloud sync automatically
+| Layer | Choice |
+| --- | --- |
+| Web UI | Next.js 15, React 19, TypeScript, Tailwind CSS 4 |
+| API | FastAPI, Uvicorn, Pydantic Settings |
+| Database | Neon Postgres via `psycopg` |
+| Auth | Email and password, scrypt hashes, HMAC-signed `gt_session` cookie |
+| LLM | OpenAI-compatible client. Groq by default; Gemini or OpenRouter also work |
+| Tasks | Todoist REST, or Apple Reminders through AppleScript / a Mac bridge |
+| Calendar | Google Calendar OAuth (optional) |
+| Jobs | APScheduler locally; Vercel Cron in production |
+| Issue import | Jira REST (optional) |
 
-Full architecture guide: [docs/VERCEL_AND_REMINDERS.md](docs/VERCEL_AND_REMINDERS.md)
+## App routes
 
-## Database (Neon PostgreSQL)
+| Path | What it is |
+| --- | --- |
+| `/signup` | Create an account |
+| `/login` | Sign in |
+| `/` | Today’s plan and tasks |
+| `/onboarding` | Profile and schedule preferences |
+| `/progress` | Scores, streaks, LeetCode log |
+| `/settings` | Profile, calendar, notification settings |
 
-1. Create a free project at [neon.tech](https://neon.tech)
-2. Copy the connection string (must include `?sslmode=require`)
-3. Set in `.env` and Vercel environment variables:
+## API
+
+Interactive docs: `http://127.0.0.1:8787/docs`
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| POST | `/auth/register` | Create an account |
+| POST | `/auth/login` | Start a session |
+| POST | `/auth/logout` | Clear the session |
+| GET | `/auth/me` | Current user |
+| POST | `/onboard` | Save profile and starting memories |
+| POST | `/ingest/pdf` | PDF to tasks |
+| POST | `/ingest/chat` | Chat message to tasks |
+| POST | `/jira/sync` | Pull assigned Jira issues |
+| POST | `/plan/daily` | Build today’s plan |
+| GET | `/tasks` | List this user’s tasks |
+| POST | `/tasks/complete` | Mark a task done |
+| GET | `/review/daily` | End-of-day score |
+| GET | `/review/weekly` | Weekly report |
+| POST | `/review/monthly` | Monthly report |
+| GET | `/brief/morning` | Morning brief |
+| POST | `/sync/todoist` | Push and pull Todoist |
+| GET | `/auth/google` | Connect Google Calendar |
+
+Cron paths (`/api/cron/morning`, `/eod`, `/weekly`, `/monthly`, `/sync-todoist`) run the same jobs for every user. They expect `CRON_SECRET`.
+
+## Data
+
+Tables are created on the first API call.
+
+| Table | Holds |
+| --- | --- |
+| `users` | Email, name, password hash |
+| `user_profiles` | Hours, goals, notification style |
+| `user_memories` | Preferences and what the planner learned |
+| `tasks` | Planned work, status, reminder id |
+| `daily_plans` | One plan per user per day |
+| `weekly_reports` / `monthly_reports` | Review snapshots |
+| `leetcode_solves` | Optional practice log |
+| `oauth_tokens` | Google Calendar tokens |
+
+## Run locally
+
+Requirements: Python 3.11+, Node.js 20+, a Neon database, and an LLM API key.
 
 ```bash
-DATABASE_URL=postgresql://user:pass@ep-xxx.region.aws.neon.tech/neondb?sslmode=require
-```
-
-Tables (`tasks`, `daily_plans`, `monthly_reports`) are created automatically on first API call.
-
-## Requirements
-
-- macOS for Apple Reminders (Mac bridge or local mode)
-- Python 3.11+
-- Neon PostgreSQL database
-- Free LLM API key (Groq recommended)
-- Jira API token (optional)
-
-## Quick start
-
-```bash
-cd guide_todoo
-python -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 
 cp .env.example .env
-# Edit .env — set DATABASE_URL (Neon) and LLM_API_KEY
+# Set DATABASE_URL, LLM_API_KEY, and a long random SESSION_SECRET
 
-# Start API + background scheduler
-guide-todoo serve
+uvicorn guide_todoo.api:app --reload --host 127.0.0.1 --port 8787
 ```
 
-API docs: http://127.0.0.1:8787/docs
-
-## CLI
+In a second terminal:
 
 ```bash
-# Phase A — PDF → tasks → Reminders
-guide-todoo pdf ~/Downloads/weekly-plan.pdf
+npm install
+npm run dev
+```
 
-# Phase B — chat + Jira + daily plan
-guide-todoo chat "Finish API docs by Friday, review PR #42 tomorrow morning"
-guide-todoo jira
+Open `http://localhost:3000`. Sign up, then sign in.
+
+CLI, once the API dependencies are installed:
+
+```bash
+guide-todoo chat "Finish the API docs by Friday"
 guide-todoo plan
-
-# Phase C — reviews
 guide-todoo summary
-guide-todoo monthly
-
-# Vercel mode — run on Mac to sync cloud tasks → Reminders → iPhone
-guide-todoo bridge
 ```
 
-## API endpoints
+Pass `--user you@email.com` when more than one account exists.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/ingest/pdf` | Upload PDF, create tasks + reminders |
-| POST | `/ingest/chat` | `{"message": "..."}` |
-| POST | `/jira/sync` | Pull assigned Jira issues |
-| POST | `/plan/daily` | Generate today's plan |
-| GET | `/tasks` | List tasks |
-| POST | `/tasks/complete` | Mark task done |
-| GET | `/review/daily` | EOD summary + score |
-| POST | `/review/monthly` | Monthly analysis report |
+## Environment
 
-## Todoist (Mac + iPhone, different Apple IDs OK)
+Copy `.env.example`. Required:
 
-1. Sign up at [todoist.com](https://todoist.com) — same account on Mac + iPhone apps
-2. **Settings → Integrations → Developer** → copy API token
-3. Set in `.env`:
+| Variable | Why |
+| --- | --- |
+| `DATABASE_URL` | Neon connection string, with `sslmode=require` |
+| `LLM_API_KEY` | Groq, Gemini, or OpenRouter key |
+| `SESSION_SECRET` | Signs the login cookie. Use a long random string |
 
-```bash
-TASKS_BACKEND=todoist
-TODOIST_API_TOKEN=your-token
-TODOIST_PROJECT_NAME=Guide Todoo
-REMINDERS_MODE=off
-```
+Optional: `LLM_PROVIDER`, `LLM_MODEL`, Todoist (`TASKS_BACKEND`, `TODOIST_API_TOKEN`), Jira, Google Calendar, `CRON_SECRET`, and `TODOIST_WEBHOOK_SECRET`.
 
-Tasks sync to Todoist automatically. Notifications go to Todoist app on both devices.
+Do not commit `.env`.
 
-## Apple Reminders (optional legacy)
+## Deploy
 
-Tasks are created in the **Guide Todoo** list via AppleScript. If that list is synced with iCloud Reminders, they appear on your iPhone automatically.
+Vercel builds the Next.js app and the Python API together (`vercel.json`). Set the same environment variables in the Vercel project. Cron schedules are in UTC.
 
-Grant **Reminders** access when macOS prompts you on first run.
+Apple Reminders cannot run on Vercel. Use Todoist, or run `guide-todoo bridge` on a Mac so cloud tasks land in iCloud Reminders. See `docs/VERCEL_AND_REMINDERS.md`.
 
-## Autonomous schedule
-
-When the server runs (`guide-todoo serve`):
-
-- **08:00** — Sync Jira + generate daily plan
-- **20:00** — End-of-day summary + score reminder
-- **Last day of month 21:00** — Monthly report
-
-Configure times in `.env` (`MORNING_PLAN_HOUR`, `EOD_SUMMARY_HOUR`, `TIMEZONE`).
-
-## Project structure
+## Layout
 
 ```
-guide_todoo/
-├── docs/PROJECT_PLAN.md
-├── src/guide_todoo/
-│   ├── api.py           # FastAPI server
-│   ├── cli.py           # CLI commands
-│   ├── planner.py       # Ingest + daily plan
-│   ├── review.py        # EOD + monthly
-│   ├── scheduler.py     # Background jobs
-│   └── integrations/
-│       ├── reminders.py # Apple Reminders
-│       └── jira.py      # Jira REST
-└── data/reports/          # Monthly reports (local files)
+src/app/                 Next.js pages
+src/components/          UI
+src/lib/api.ts           Browser API client
+src/guide_todoo/         FastAPI app, planner, auth, scheduler
+src/guide_todoo/integrations/   Todoist, Reminders, Jira, Google Calendar
+api/index.py             Vercel entry for the Python API
+docs/                    Longer design notes
 ```
-
-## Neon setup
-
-1. Sign up at [neon.tech](https://neon.tech) → create project
-2. Dashboard → **Connection string** → copy `DATABASE_URL`
-3. Paste into `.env` locally and Vercel env vars
-
-Neon integrates with Vercel: Vercel dashboard → Storage → Neon → auto-sets `DATABASE_URL`.
-
-## Jira setup
-
-1. Create an API token: https://id.atlassian.com/manage-profile/security/api-tokens
-2. Set `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` in `.env`
 
 ## License
 
