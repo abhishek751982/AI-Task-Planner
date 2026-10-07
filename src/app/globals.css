@@ -555,6 +555,30 @@ body {
   padding-top: 0.15rem;
 }
 
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.user-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-logout {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ink-3);
+}
+
+.user-chip:hover .user-logout {
+  color: var(--ink);
+}
+
 .user-initial {
   flex: none;
   display: grid;

@@ -149,11 +149,14 @@ function Rail({ pathname, user, onLogout }: { pathname: string; user: Account | 
 
       <div className="rail-foot">
         {user ? (
-          <button type="button" className="user-chip" onClick={onLogout} aria-label={`${user.name}, sign out`}>
+          <button type="button" className="user-chip" onClick={onLogout} aria-label={`${user.name}, log out`}>
             <span className="user-initial" aria-hidden>
               {initial}
             </span>
-            <span className="rail-label">{user.name}</span>
+            <span className="user-meta rail-label">
+              <span className="user-name">{user.name}</span>
+              <span className="user-logout">Log out</span>
+            </span>
           </button>
         ) : null}
         <ThemeToggle />
